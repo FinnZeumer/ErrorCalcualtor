@@ -20,7 +20,3 @@ Run the main script:
 ```sh
 python main.py
 ```
-
-## License
-MIT
->>>>>>> db705a8 (Initial commit: Python Fehlerrechnung tool with GUI and data cleaning features)
