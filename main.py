@@ -381,8 +381,8 @@ def gui_main():
 
     # File type
     ttk.Label(frame_results, text="Dateityp:").pack(side="left", padx=5)
-    export_file_type = tk.StringVar(value="tex")
-    ttk.OptionMenu(frame_results, export_file_type, "tex", "csv").pack(side="left", padx=5)
+    export_file_type = tk.StringVar(value="sty")
+    ttk.OptionMenu(frame_results, export_file_type, "sty", "csv").pack(side="left", padx=5)
 
     # Export button
     ttk.Button(
@@ -400,7 +400,7 @@ def gui_main():
         filename = entry_export_filename.get()
         file_type = export_file_type.get()
 
-        extension = ".tex" if file_type == "tex" else ".csv"
+        extension = ".sty" if file_type == "sty" else ".csv"
         export_path = f"{folder}/{filename}{extension}"
 
         try:
@@ -425,34 +425,64 @@ def gui_main():
                     header=['Messwerte', 'Absolute Abweichung', 'Relative Abweichung (\\%)']
                 )
 
-            elif file_type == "tex":
+            elif file_type == "sty":
                 # Export as LaTeX
-                if not export_path.lower().endswith(".tex"):
-                    export_path += ".tex"
+                if not export_path.lower().endswith(".sty"):
+                    export_path += ".sty"
+                # Kommentare für die LaTeX Datei
+                latex = "% ----- Diese Datei enthält die Versuchswerte, die durch das FEZ PAP ErrorCalculator tool berehcnet wurden und automatisiert ertsellt wird. -----\n"
+                latex += "% --- Hier stehen die Messwerte und deren Unsicherheiten für den jeweiigligen Versuch tabellarisch drin. ---\n"
+                latex += "% Variable der Tabelle der Messwerte\n"
 
-                headers = ['Messwerte', 'Absolute Abweichung', 'Relative Abweichung (%)']
+                # Tabelleneinstellungen
+                headers = ['Messwerte', 'Absolute Abweichung', 'Relative Abweichung (\%)']
                 caption = "Messwerte mit Abweichungen"
                 label = "tab:messwerte"
 
-                # Begin LaTeX table
-                latex = "\\begin{table}[h!]\n\\centering\n"
-                latex += f"\\caption{{{caption}}}\n"
-                latex += f"\\label{{{label}}}\n"
+                # Latex Tabelle als Variable
+                latex += "% Tabelle der Messwerte \n"
+                latex += "\\newcommand{\\messwertetabelle}{%\n"
+                latex += "\\begin{table}[h!]\\centering\n"
                 latex += "\\begin{tabular}{" + " | ".join(["l"] + ["r"] * (len(headers)-1)) + "}\n"
-                latex += " \\hline\n"
+                latex += "\\hline\n"
                 latex += " & ".join(headers) + " \\\\\n"
-                latex += " \\hline\n"
+                latex += "\\hline\n"
 
                 for row in df_export.values:
-                    latex += " & ".join(map(str, row)) + " \\\\\n"
+                    latex += " & ".join(
+                        f"{val:.3f}" if isinstance(val, (int, float)) else str(val)
+                        for val in row
+                    ) + " \\\\\n"
 
-                latex += " \\hline\n\\end{tabular}\n\\end{table}\n\n"
+                latex += "\\hline\n\\end{tabular}\n"
+                latex += f"\\caption{{{caption}}}\n"
+                latex += f"\\label{{{label}}}\n"
+                latex += "\\end{table}\n"
+                latex += "}\n"
 
-                # Add summary statistics
-                latex += f"Arithmetischer Mittelwert: {mean_val:.3f} \\\\\n"
-                latex += f"Standardabweichung $\\sigma$ : $\\pm${std_dev:.3f} \\\\\n"
-                latex += f"Statistischer Fehler: $\\pm${(std_dev / (count ** 0.5)):.3f} \\\\\n"
-                latex += f"Anzahl Messwerte: {count} \n"
+                # Add summary statistics as Latex variables
+                latex += "% --- Hier stehen die berechneten Werte und deren Unsicherheiten den jeweiligen Versuch. --- \n"
+                latex += "% Arithmetische Mittelwerte und Standardabweichungen \n"
+                
+                # Mittelwert
+                latex += "% Arithmetischer Mittelwert \n"
+                latex += "\\newcommand{\\mittelwert}{" + f"{mean_val:.3f}" + "}\n \n" #variable
+
+                # Standardabweichung
+                latex += "% Absolute Standartabweichung Sigma \n"
+                latex += "\\newcommand{\\standardabweichung}{" + f"{std_dev:.3f}" + "}\n \n"
+
+                # Variation
+                latex += "% Variation Sigma Quadrat \n"
+                latex += "\\newcommand{\\variation}{" + f"{std_dev**2:.3f}" + "}\n\n"
+
+                # Statistischer Fehler
+                latex += "% Statistischer Fehler des Mittelwerts\n"
+                latex += "\\newcommand{\\statistischerfehler}{" + f"{(std_dev / (count ** 0.5)):.3f}" + "}\n\n"
+                
+                # Anzahl Messwerte
+                latex += "% Anzahl der Messwerte N \n"
+                latex += "\\newcommand{\\anzahlmesswerte}{" + f"{count}" + "}\n\n "
 
                 with open(export_path, "w") as f:
                     f.write(latex)
